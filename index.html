@@ -1,17 +1,184 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <div id="customAlert" style="display: none; border: 1px solid black; padding: 20px; background-color: lightgray;">
-        <p>This is some <strong style="font-weight: bold;">bold text</strong> in a custom alert.</p>
-        <button onclick="document.getElementById('customAlert').style.display = 'none';">Close</button>
-    </div>
+  <meta charset="utf-8" />
+  <title>Forced-acknowledgement Modal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --backdrop: rgba(0,0,0,.55); }
+    html, body { height: 100%; margin: 0; }
+    body.modal-open { overflow: hidden; }
 
-    <script>
-        function showAlert() {
-            document.getElementById('customAlert').style.display = 'block';
-        }
-    </script>
-    <button onclick="showAlert()">Show Custom Alert</button>    
+    /* Backdrop */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: var(--backdrop);
+      display: none;
+    }
+    .modal-backdrop[aria-hidden="false"] { display: block; }
+
+    /* Dialog */
+    .modal {
+      position: fixed; inset: 0;
+      display: grid; place-items: center;
+      pointer-events: none; /* block background clicks reaching page */
+    }
+    .modal[aria-hidden="false"] { pointer-events: auto; }
+
+    .modal__dialog {
+      width: min(520px, 92vw);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      padding: 1.25rem 1.25rem 1rem;
+      outline: none; /* focus ring will be on inside controls */
+    }
+    .modal__title { margin: 0 0 .5rem; font-size: 1.25rem; }
+    .modal__body { margin: 0 0 1rem; line-height: 1.45; }
+    .modal__footer { display: flex; gap: .5rem; justify-content: flex-end; }
+    .btn {
+      border: 1px solid #bbb;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #f6f6f6;
+    }
+    .btn.primary { border-color: #225; background: #eef; }
+  </style>
 </head>
-    <body></body>
+<body>
+
+  <!-- Your page content -->
+  <main id="app" tabindex="-1">
+    <h1>Page Content</h1>
+    <p>This content cannot be interacted with while the modal is open.</p>
+  </main>
+
+  <!-- Backdrop -->
+  <div class="modal-backdrop" id="backdrop" aria-hidden="true"></div>
+
+  <!-- Modal (aria-modal traps assistive tech; JS traps keyboard) -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal__dialog"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modal-title"
+         aria-describedby="modal-desc"
+         tabindex="-1">
+      <h2 class="modal__title" id="modal-title">Please Confirm</h2>
+      <p class="modal__body" id="modal-desc">
+        This modal requires acknowledgement. You can’t interact with the page until you press OK.
+      </p>
+      <div class="modal__footer">
+        <button class="btn primary" id="okBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const modal = document.getElementById('modal');
+      const dialog = modal.querySelector('.modal__dialog');
+      const backdrop = document.getElementById('backdrop');
+      const app = document.getElementById('app');
+      const okBtn = document.getElementById('okBtn');
+
+      let lastFocusedBeforeOpen = null;
+
+      const focusableSelector =
+        'a[href], area[href], input:not([disabled]):not([type="hidden"]), ' +
+        'select:not([disabled]), textarea:not([disabled]), button:not([disabled]), ' +
+        '[tabindex]:not([tabindex="-1"])';
+
+      function getFocusable() {
+        return Array.from(dialog.querySelectorAll(focusableSelector))
+                    .filter(el => el.offsetParent !== null || el === dialog);
+      }
+
+      function trapTab(e) {
+        if (e.key !== 'Tab') return;
+
+        const focusables = getFocusable();
+        if (focusables.length === 0) {
+          // keep focus on dialog if nothing else is focusable
+          e.preventDefault();
+          dialog.focus();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+
+        if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && (active === first || active === dialog)) {
+          e.preventDefault();
+          last.focus();
+        }
+      }
+
+      function blockEsc(e) {
+        if (e.key === 'Escape') {
+          // Do not close; keep focus in the modal
+          e.preventDefault();
+          dialog.focus();
+        }
+      }
+
+      function openModal() {
+        lastFocusedBeforeOpen = document.activeElement;
+        modal.setAttribute('aria-hidden', 'false');
+        backdrop.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+
+        // Make background inert to keyboard/mouse (supported on most modern browsers)
+        if ('inert' in app) app.inert = true;
+
+        // Focus management
+        dialog.addEventListener('keydown', trapTab);
+        document.addEventListener('keydown', blockEsc, true);
+
+        // Immediately focus the first focusable, otherwise the dialog itself
+        const focusables = getFocusable();
+        (focusables[0] || dialog).focus();
+      }
+
+      function closeModal() {
+        modal.setAttribute('aria-hidden', 'true');
+        backdrop.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+
+        if ('inert' in app) app.inert = false;
+
+        dialog.removeEventListener('keydown', trapTab);
+        document.removeEventListener('keydown', blockEsc, true);
+
+        // Restore focus
+        (lastFocusedBeforeOpen || app).focus();
+      }
+
+      // Only close when OK is clicked
+      okBtn.addEventListener('click', closeModal);
+
+      // Prevent any clicks from "closing" the modal by accident
+      // (We don't close on outside clicks; these handlers simply stop propagation.)
+      modal.addEventListener('click', (e) => {
+        // If someone clicks the backdrop or outside dialog, do nothing.
+        if (e.target === modal || e.target === backdrop) {
+          e.stopPropagation();
+          dialog.focus();
+        }
+      });
+      backdrop.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dialog.focus();
+      });
+
+      // Auto-open on load
+      window.addEventListener('DOMContentLoaded', openModal);
+    })();
+  </script>
+</body>
 </html>
