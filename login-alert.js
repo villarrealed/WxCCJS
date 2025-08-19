@@ -9,4 +9,4 @@ class LoginAlertWidget extends HTMLElement {
   }
 }
 customElements.define('login-alert-widget', LoginAlertWidget);
-</script?
+</script>
