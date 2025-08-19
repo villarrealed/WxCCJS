@@ -1,7 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script>alert('By accessing the company’s systems remotely, you acknowledge and agree to the following terms:Access is granted solely for authorized business purposes and must comply with all applicable company policies and security protocols.You are responsible for maintaining the confidentiality of your login credentials and must not share them with others.Remote access must be conducted using secure methods approved by the company, including the use of VPNs, multi-factor authentication, and up-to-date security software.Unauthorized access, misuse, or disclosure of company data or systems is strictly prohibited and may result in disciplinary action, including termination and legal consequences.You must ensure that the device used for remote access is secure, free from malware, and complies with company security standards.The company reserves the right to monitor and audit remote access sessions to ensure compliance with security policies.By continuing to use remote access, you consent to these terms and acknowledge your responsibility to protect company information and systems.');</script>
+    <div id="customAlert" style="display: none; border: 1px solid black; padding: 20px; background-color: lightgray;">
+        <p>This is some <strong style="font-weight: bold;">bold text</strong> in a custom alert.</p>
+        <button onclick="document.getElementById('customAlert').style.display = 'none';">Close</button>
+    </div>
+
+    <script>
+        function showAlert() {
+            document.getElementById('customAlert').style.display = 'block';
+        }
+    </script>
+    <button onclick="showAlert()">Show Custom Alert</button>    
 </head>
     <body></body>
 </html>
