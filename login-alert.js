@@ -1,3 +1,4 @@
+<script>
 class LoginAlertWidget extends HTMLElement {
   connectedCallback() {
     const message = this.getAttribute('message') || 'Welcome!';
@@ -8,3 +9,4 @@ class LoginAlertWidget extends HTMLElement {
   }
 }
 customElements.define('login-alert-widget', LoginAlertWidget);
+</script?
